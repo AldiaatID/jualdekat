@@ -1,10 +1,17 @@
-import React, { type PropsWithChildren } from 'react';
+import React, { useEffect, type PropsWithChildren } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-/**
- * Global providers wrapper.
- * Future tasks will add: NavigationContainer, AuthProvider, etc.
- */
+import { useAuthStore } from '@/stores/authStore';
+
 export function AppProviders({ children }: PropsWithChildren): React.ReactElement {
-  return <SafeAreaProvider>{children}</SafeAreaProvider>;
+  const init = useAuthStore((s) => s.init);
+  useEffect(() => {
+    void init();
+  }, [init]);
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>{children}</SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
 }
