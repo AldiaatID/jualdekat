@@ -8,13 +8,18 @@ import { fontSizes, fontWeights, spacing } from '@/constants/spacing';
 import { useLocation } from '@/hooks/useLocation';
 
 export function LocationPermissionScreen(): React.ReactElement {
-  const { request, permission } = useLocation();
-  const [loading, setLoading] = useState(false);
+  const { request, setDemoLocation, permission } = useLocation();
+  const [loading, setLoading] = useState<'gps' | 'demo' | null>(null);
 
   const handleGrant = async () => {
-    setLoading(true);
+    setLoading('gps');
     await request();
-    setLoading(false);
+    setLoading(null);
+  };
+  const handleDemo = async () => {
+    setLoading('demo');
+    await setDemoLocation();
+    setLoading(null);
   };
 
   return (
@@ -28,15 +33,22 @@ export function LocationPermissionScreen(): React.ReactElement {
         lokasi presisi penjual ke pengguna lain.
       </Text>
       <Button
-        title={permission === 'denied' ? 'Coba Lagi' : 'Izinkan akses lokasi'}
+        title={permission === 'denied' ? 'Coba lagi izinkan lokasi' : 'Izinkan akses lokasi'}
         onPress={handleGrant}
-        loading={loading}
+        loading={loading === 'gps'}
         fullWidth
         style={{ marginTop: spacing.lg }}
       />
+      <Button
+        title="Gunakan lokasi demo (Beji, Depok)"
+        variant="secondary"
+        onPress={handleDemo}
+        loading={loading === 'demo'}
+        fullWidth
+      />
       {permission === 'denied' ? (
         <Text style={styles.warn}>
-          Akses ditolak. Buka pengaturan perangkat dan aktifkan izin lokasi untuk JualDekat.
+          Akses lokasi ditolak. Kamu tetap bisa mencoba aplikasi dengan lokasi demo.
         </Text>
       ) : null}
     </View>
@@ -69,5 +81,5 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     maxWidth: 360,
   },
-  warn: { color: colors.danger, marginTop: spacing.md, textAlign: 'center' },
+  warn: { color: colors.warning, marginTop: spacing.md, textAlign: 'center', fontSize: fontSizes.sm },
 });

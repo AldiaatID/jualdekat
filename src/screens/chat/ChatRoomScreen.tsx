@@ -19,7 +19,6 @@ import { colors } from '@/constants/colors';
 import { fontSizes, fontWeights, radii, spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchMessages, sendMessage, subscribeMessages } from '@/services/chatService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import type { MessageRow } from '@/types/db';
 
 interface Props {
@@ -40,7 +39,6 @@ export function ChatRoomScreen({ conversationId, productName, peerName }: Props)
   const load = async () => {
     setError(null); setLoading(true);
     try {
-      if (!isSupabaseConfigured) { setMessages([]); return; }
       setMessages(await fetchMessages(conversationId));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat pesan.');
@@ -50,7 +48,6 @@ export function ChatRoomScreen({ conversationId, productName, peerName }: Props)
   useEffect(() => { void load(); /* eslint-disable-next-line */ }, [conversationId]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
     const unsub = subscribeMessages(conversationId, (m) => {
       setMessages((cur) => (cur.some((x) => x.id === m.id) ? cur : [...cur, m]));
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));

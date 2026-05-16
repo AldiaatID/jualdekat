@@ -11,7 +11,6 @@ import { colors } from '@/constants/colors';
 import { fontSizes, fontWeights, spacing } from '@/constants/spacing';
 import { listProductsByUser } from '@/services/productService';
 import { getUserProfile } from '@/services/profileService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import type { ProfileRow } from '@/types/db';
 import type { ProductFeedItem } from '@/types/domain';
 
@@ -30,7 +29,6 @@ export function UserProfileScreen({ userId, onPressProduct, onReport }: Props): 
   const load = async () => {
     setError(null); setLoading(true);
     try {
-      if (!isSupabaseConfigured) return;
       const [p, items] = await Promise.all([
         getUserProfile(userId),
         listProductsByUser(userId, ['tersedia', 'proses']),

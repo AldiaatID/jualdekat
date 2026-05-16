@@ -1,17 +1,17 @@
 import { create } from 'zustand';
-import type { Session, User } from '@supabase/supabase-js';
 
-import { supabase, isSupabaseConfigured } from '@/services/supabase';
+import { initAuth, onAuthStateChange, mockSignOut, type MockSession, type MockUser } from '@/services/mock/auth';
+import { ensureSeed } from '@/services/mock/seed';
 import { getMyProfile } from '@/services/profileService';
 import type { ProfileRow } from '@/types/db';
 
 interface AuthState {
   initialized: boolean;
-  session: Session | null;
-  user: User | null;
+  session: MockSession | null;
+  user: MockUser | null;
   profile: ProfileRow | null;
   init: () => Promise<void>;
-  setSession: (session: Session | null) => Promise<void>;
+  setSession: (session: MockSession | null) => Promise<void>;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -23,14 +23,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   init: async () => {
     if (get().initialized) return;
-    if (!isSupabaseConfigured) {
-      set({ initialized: true });
-      return;
-    }
-    const { data } = await supabase.auth.getSession();
-    await get().setSession(data.session);
-    supabase.auth.onAuthStateChange((_event, session) => {
-      void get().setSession(session);
+    await ensureSeed();
+    const session = await initAuth();
+    await get().setSession(session);
+    onAuthStateChange((s) => {
+      void get().setSession(s);
     });
     set({ initialized: true });
   },
@@ -58,7 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   signOut: async () => {
-    await supabase.auth.signOut();
+    await mockSignOut();
     set({ session: null, user: null, profile: null });
   },
 }));

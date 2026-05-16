@@ -20,7 +20,6 @@ import {
   getProductDetail,
   setProductStatus,
 } from '@/services/productService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import type { ProductFeedItem } from '@/types/domain';
 import { formatDistance } from '@/utils/distance';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -55,7 +54,6 @@ export function ProductDetailScreen({
     setError(null);
     setLoading(true);
     try {
-      if (!isSupabaseConfigured) { setItem(null); return; }
       const detail = await getProductDetail(productId, coords);
       setItem(detail);
       if (user && detail) setFav(await isFavorited(user.id, detail.id));

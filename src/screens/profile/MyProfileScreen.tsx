@@ -12,7 +12,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { listMyTransactions } from '@/services/transactionService';
 import { listProductsByUser } from '@/services/productService';
 import { existingRatingFor, listRatingsForUser } from '@/services/ratingService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import type { ProductFeedItem } from '@/types/domain';
 import type { RatingRow, TransactionRow } from '@/types/db';
 import { formatRelativeId, formatDate } from '@/utils/formatDate';
@@ -50,7 +49,6 @@ export function MyProfileScreen({
     if (!user) return;
     setLoading(true);
     try {
-      if (!isSupabaseConfigured) return;
       const [available, soldList, rats, txs] = await Promise.all([
         listProductsByUser(user.id, ['tersedia', 'proses']),
         listProductsByUser(user.id, ['terjual']),

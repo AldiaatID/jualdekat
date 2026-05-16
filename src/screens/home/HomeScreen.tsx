@@ -14,7 +14,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from '@/hooks/useLocation';
 import { addFavorite, listFavorites, removeFavorite } from '@/services/favoriteService';
 import { fetchFeed, listCategories } from '@/services/productService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import { useFilterStore } from '@/stores/filterStore';
 import type { CategoryRow } from '@/types/db';
 import type { ProductFeedItem } from '@/types/domain';
@@ -48,10 +47,6 @@ export function HomeScreen({ onPressProduct, onPressSearch }: Props): React.Reac
   const load = useCallback(async () => {
     setError(null);
     try {
-      if (!isSupabaseConfigured) {
-        setItems([]);
-        return;
-      }
       const [feed, favs] = await Promise.all([
         fetchFeed({
           center,
@@ -72,7 +67,7 @@ export function HomeScreen({ onPressProduct, onPressSearch }: Props): React.Reac
     setLoading(true);
     void (async () => {
       try {
-        if (isSupabaseConfigured) {
+        {
           const cats = await listCategories();
           setCategories(cats);
         }

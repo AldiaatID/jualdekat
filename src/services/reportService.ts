@@ -1,4 +1,5 @@
-import { supabase } from '@/services/supabase';
+import { db } from '@/services/mock/db';
+import { uuid } from '@/services/mock/uuid';
 import type { ReportReason, ReportRow } from '@/types/db';
 
 export interface ReportInput {
@@ -10,11 +11,16 @@ export interface ReportInput {
 }
 
 export async function submitReport(input: ReportInput): Promise<ReportRow> {
-  const { data, error } = await supabase
-    .from('reports')
-    .insert(input as never)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data as ReportRow;
+  const row: ReportRow = {
+    id: uuid(),
+    reporter_id: input.reporter_id,
+    reported_user_id: input.reported_user_id ?? null,
+    product_id: input.product_id ?? null,
+    reason: input.reason,
+    description: input.description ?? null,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  };
+  await db.insert('reports', row);
+  return row;
 }

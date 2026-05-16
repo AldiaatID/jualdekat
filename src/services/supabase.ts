@@ -1,36 +1,11 @@
-import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
+/**
+ * Backend mode flag.
+ * The app currently runs against a fully local mock backend (AsyncStorage +
+ * BroadcastChannel) so it can be served as a static site without any
+ * external service. The original `supabase` client has been removed; this
+ * file kept only as a compatibility shim so other modules can import a flag
+ * if needed in the future.
+ */
 
-import type { Database } from '@/types/db';
-
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-
-export const isSupabaseConfigured = Boolean(url && anonKey);
-
-if (!isSupabaseConfigured && __DEV__) {
-  // eslint-disable-next-line no-console
-  console.warn(
-    '[supabase] EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY belum diisi. ' +
-      'Aplikasi akan berjalan dalam mode demo (tanpa backend).',
-  );
-}
-
-// Saat web SSR (export), AsyncStorage tetap aman, tetapi tidak ada window.
-const isWeb = Platform.OS === 'web';
-
-export const supabase: SupabaseClient<Database> = createClient<Database>(
-  url || 'https://placeholder.supabase.co',
-  anonKey || 'placeholder-anon-key',
-  {
-    auth: {
-      storage: AsyncStorage as never,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: isWeb,
-      flowType: 'pkce',
-    },
-  },
-);
+export const isSupabaseConfigured = true; // mock backend is always available
+export const BACKEND_MODE = 'mock' as const;

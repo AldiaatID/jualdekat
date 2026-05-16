@@ -16,7 +16,6 @@ import {
   listCategories,
 } from '@/services/productService';
 import { uploadProductImage } from '@/services/storageService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import type { CategoryRow, ProductCondition, TransactionMethod } from '@/types/db';
 import { formatCurrency, parseCurrencyInput } from '@/utils/formatCurrency';
 import { validateProduct } from '@/utils/validation';
@@ -46,7 +45,6 @@ export function ProductCreateScreen({ onCreated }: Props): React.ReactElement {
 
   useEffect(() => {
     void (async () => {
-      if (!isSupabaseConfigured) return;
       try { setCategories(await listCategories()); } catch { /* ignore */ }
     })();
   }, []);
@@ -71,10 +69,6 @@ export function ProductCreateScreen({ onCreated }: Props): React.ReactElement {
     });
     setErrors(v.errors);
     if (!v.valid) return;
-    if (!isSupabaseConfigured) {
-      Alert.alert('Mode Demo', 'Konfigurasi Supabase di .env untuk mengunggah produk.');
-      return;
-    }
     setLoading(true);
     try {
       const product = await createProduct({

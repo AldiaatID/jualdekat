@@ -9,7 +9,6 @@ import { LoadingView } from '@/components/common/LoadingView';
 import { colors } from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { listMyConversations } from '@/services/chatService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import type { ConversationListItem } from '@/types/domain';
 
 interface Props {
@@ -27,7 +26,6 @@ export function ChatListScreen({ onOpenChat }: Props): React.ReactElement {
     if (!user) return;
     setError(null);
     try {
-      if (!isSupabaseConfigured) { setItems([]); return; }
       setItems(await listMyConversations(user.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat chat.');

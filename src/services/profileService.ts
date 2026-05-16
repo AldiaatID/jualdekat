@@ -1,24 +1,12 @@
-import { supabase } from '@/services/supabase';
+import { db } from '@/services/mock/db';
 import type { ProfileRow } from '@/types/db';
 
 export async function getMyProfile(userId: string): Promise<ProfileRow | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
-  if (error) throw error;
-  return (data as ProfileRow | null) ?? null;
+  return db.findById<ProfileRow>('profiles', userId);
 }
 
 export async function getUserProfile(userId: string): Promise<ProfileRow | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
-  if (error) throw error;
-  return (data as ProfileRow | null) ?? null;
+  return db.findById<ProfileRow>('profiles', userId);
 }
 
 export interface ProfileUpsertInput {
@@ -33,13 +21,23 @@ export interface ProfileUpsertInput {
 }
 
 export async function upsertProfile(input: ProfileUpsertInput): Promise<ProfileRow> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert(input as never, { onConflict: 'id' })
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data as ProfileRow;
+  const now = new Date().toISOString();
+  const existing = await db.findById<ProfileRow>('profiles', input.id);
+  const merged: ProfileRow = {
+    id: input.id,
+    full_name: input.full_name,
+    avatar_url: input.avatar_url ?? existing?.avatar_url ?? null,
+    phone_number: input.phone_number ?? existing?.phone_number ?? null,
+    city: input.city,
+    area: input.area,
+    latitude: input.latitude ?? existing?.latitude ?? null,
+    longitude: input.longitude ?? existing?.longitude ?? null,
+    rating_average: existing?.rating_average ?? 0,
+    rating_count: existing?.rating_count ?? 0,
+    created_at: existing?.created_at ?? now,
+    updated_at: now,
+  };
+  return db.upsert('profiles', merged);
 }
 
 export async function updateMyLocation(
@@ -47,9 +45,11 @@ export async function updateMyLocation(
   latitude: number,
   longitude: number,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ latitude, longitude } as never)
-    .eq('id', userId);
-  if (error) throw error;
+  const existing = await db.findById<ProfileRow>('profiles', userId);
+  if (!existing) return;
+  await db.update<ProfileRow>('profiles', userId, {
+    latitude,
+    longitude,
+    updated_at: new Date().toISOString(),
+  });
 }

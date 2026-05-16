@@ -9,7 +9,6 @@ import { ProductGrid } from '@/components/product/ProductGrid';
 import { colors } from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { listFavorites, removeFavorite } from '@/services/favoriteService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import type { ProductFeedItem } from '@/types/domain';
 
 interface Props {
@@ -26,7 +25,6 @@ export function FavoritesScreen({ onPressProduct }: Props): React.ReactElement {
     if (!user) return;
     setError(null); setLoading(true);
     try {
-      if (!isSupabaseConfigured) { setItems([]); return; }
       setItems(await listFavorites(user.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat favorit.');

@@ -14,7 +14,6 @@ import { fontSizes, fontWeights, spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from '@/hooks/useLocation';
 import { fetchFeed, listCategories } from '@/services/productService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import { useFilterStore } from '@/stores/filterStore';
 import type { CategoryRow } from '@/types/db';
 import type { ProductFeedItem } from '@/types/domain';
@@ -43,7 +42,7 @@ export function SearchScreen({ onPressProduct }: Props): React.ReactElement {
   useEffect(() => {
     void (async () => {
       try {
-        if (isSupabaseConfigured) setCategories(await listCategories());
+        setCategories(await listCategories());
       } catch { /* ignore */ }
     })();
   }, []);
@@ -59,7 +58,6 @@ export function SearchScreen({ onPressProduct }: Props): React.ReactElement {
   const runSearch = async (overrideKeyword?: string) => {
     setLoading(true);
     try {
-      if (!isSupabaseConfigured) { setItems([]); return; }
       const data = await fetchFeed({
         center,
         radiusKm: filter.radiusKm,

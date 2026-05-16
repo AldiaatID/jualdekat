@@ -1,159 +1,126 @@
 # JualDekat
 
-Aplikasi marketplace lokal berbasis lokasi untuk jual-beli barang baru dan bekas yang dekat dari pengguna. Fokus pada anak kos, mahasiswa, dan warga sekitar kampus yang ingin transaksi COD tanpa ongkir.
+Marketplace lokal berbasis lokasi untuk anak kos, mahasiswa, dan warga sekitar kampus. Fokus pada COD tanpa ongkir, barang baru/bekas yang ada di radius beberapa kilometer.
 
-> **Spec lengkap**: lihat folder [`.kiro/specs/jualdekat-mvp/`](.kiro/specs/jualdekat-mvp/) — `requirements.md`, `design.md`, `tasks.md`.
+> **Spec lengkap**: [`.kiro/specs/jualdekat-mvp/`](.kiro/specs/jualdekat-mvp/) — `requirements.md`, `design.md`, `tasks.md`.
 
-## Demo Web
+## 🌐 Live demo
 
-Setelah workflow CI berhasil, demo akan tersedia di:
 **https://aldiaatid.github.io/jualdekat/**
 
-Tanpa konfigurasi Supabase, halaman akan berjalan dalam **mode demo** (login & data tidak akan jalan, tapi aplikasi tidak crash).
+Tinggal buka — tidak perlu setup apa pun. Tap salah satu **chip akun demo** di layar Login (`rina@demo.com`, `budi@demo.com`, `andi@demo.com`, `dewi@demo.com`, password semua **`demo1234`**).
+
+## Bagaimana ini berjalan tanpa server?
+
+Backend dijalankan **di sisi client**, di browser/perangkat kamu sendiri:
+
+| Bagian | Implementasi |
+|---|---|
+| Storage data | `AsyncStorage` (web: IndexedDB/localStorage) |
+| Auth | mock — credential di-hash sederhana di tabel `_creds` |
+| Realtime chat | `BroadcastChannel` (lintas tab di browser yang sama) |
+| Foto produk/avatar | base64 data URL embedded di tabel |
+| Lokasi | `expo-location` (web: `navigator.geolocation`); ada fallback "Lokasi demo (Beji, Depok)" |
+| Seed data | otomatis: 10 kategori + 4 user demo + 10 produk + foto SVG |
+
+Konsekuensi yang harus diketahui:
+
+- Setiap pengunjung punya **dunia datanya sendiri** (data tidak dishare antar perangkat).
+- Realtime chat hanya bekerja **antar tab** di browser yang sama (BroadcastChannel).
+- Reset data: di DevTools jalankan `localStorage.clear()` lalu reload.
+
+Kalau nanti ingin shared backend, semua service di `src/services/` bisa di-swap dengan adapter ke API beneran tanpa mengubah komponen.
 
 ## Tech Stack
 
-- React Native + Expo (SDK 51, TypeScript strict)
-- Supabase (Auth, Postgres, Storage, Realtime)
+- React Native + Expo SDK 51 (TypeScript strict)
 - React Navigation v6 (native stack + bottom tabs)
 - Zustand (state management)
 - Expo Location, Expo Image Picker
 - StyleSheet + theme tokens (`src/constants/colors.ts`, `src/constants/spacing.ts`)
+- Mock backend (`src/services/mock/`)
 
-## Setup Cepat
-
-### 1. Clone & install
+## Setup lokal (5 menit)
 
 ```bash
 git clone https://github.com/AldiaatID/jualdekat
 cd jualdekat
 npm install
+npm run web              # buka di browser
+# atau
+npm start                # scan QR di Expo Go (mobile)
 ```
 
-### 2. Buat project Supabase
+Tidak perlu `.env`, tidak perlu Supabase, tidak perlu apa pun. Buka URL → langsung jalan.
 
-1. Buka [supabase.com](https://supabase.com), buat project baru.
-2. Catat `Project URL` dan `anon` key dari **Project Settings → API**.
-
-### 3. Buat tabel & RLS
-
-Buka **SQL Editor** di dashboard Supabase, jalankan berurutan:
-
-```sql
--- 1) supabase/schema.sql       (tabel, index, trigger, realtime publication)
--- 2) supabase/policies.sql     (RLS + storage policies)
--- 3) supabase/seed.sql         (10 kategori awal)
-```
-
-### 4. Buat Storage buckets
-
-Di **Storage**:
-- Buat bucket `product-images` (public ON).
-- Buat bucket `avatars` (public ON).
-
-Storage policies sudah dibuat oleh `policies.sql`.
-
-### 5. Konfigurasi `.env`
-
-```bash
-cp .env.example .env
-```
-
-Isi:
-```
-EXPO_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-```
-
-### 6. Jalankan
-
-```bash
-npm start              # Expo dev server, scan QR di Expo Go
-npm run web            # versi web (browser)
-npm run android        # emulator/device Android
-npm run ios            # simulator iOS (Mac)
-```
-
-## Struktur Folder
+## Struktur folder
 
 ```
 src/
-  app/                  Entry & providers
+  app/                  Entry & providers (init mock auth + seed)
   components/
     common/             Button, Input, Avatar, Badge, EmptyState, ...
     product/            ProductCard, ProductGrid, ImageCarousel, ImagePickerGrid
     chat/               MessageBubble, ConversationItem
     profile/            SellerCard
   screens/
-    auth/               LoginScreen, RegisterScreen
+    auth/               LoginScreen (with demo accounts), RegisterScreen
     onboarding/         ProfileOnboardingScreen, LocationPermissionScreen
-    home/               HomeScreen
-    search/             SearchScreen
-    product/            ProductCreateScreen, ProductDetailScreen, MarkAsSoldScreen
-    chat/               ChatListScreen, ChatRoomScreen
-    profile/            MyProfileScreen, EditProfileScreen, UserProfileScreen, FavoritesScreen
-    rating/             CreateRatingScreen
-    report/             CreateReportScreen
+    home/, search/, product/, chat/, profile/, rating/, report/
   navigation/           RootNavigator, AppTabs, types
-  services/             supabase, auth, profile, product, chat, location, favorite,
-                        rating, report, transaction, storage
+  services/
+    mock/               db, auth, seed, realtime, storage, uuid
+    authService, profileService, productService, chatService,
+    favoriteService, ratingService, reportService, transactionService,
+    locationService, storageService
   hooks/                useAuth, useLocation
-  stores/               authStore, locationStore, filterStore (Zustand)
+  stores/               authStore, locationStore, filterStore
   utils/                distance, formatCurrency, formatDate, validation
   types/                db, domain
   constants/            colors, spacing, categories, radius
-supabase/               schema.sql, policies.sql, seed.sql
-.github/workflows/      deploy-web.yml (GitHub Pages CI)
+.github/workflows/      deploy-web.yml (otomatis deploy ke GitHub Pages)
 .kiro/specs/jualdekat-mvp/  requirements.md, design.md, tasks.md
 docs/                   manual-test-checklist.md
 ```
 
 ## Fitur MVP
 
-- Auth (register/login/logout) via Supabase Auth.
-- Onboarding profil (nama, kota, area, foto, WhatsApp).
-- Izin lokasi + radius pencarian (1/3/5/10/20 km).
-- Upload produk (1-5 foto, kategori, kondisi, area, lokasi, metode transaksi).
-- Feed berbasis lokasi (sort by jarak → terbaru) + filter (kategori, kondisi, harga, radius) + search.
-- Detail produk dengan carousel, info penjual, rating, tombol chat/favorit/laporkan.
-- Favorit (toggle dari kartu/detail, halaman daftar).
-- Chat realtime (Supabase Realtime channel per conversation), anti-duplikat conversation.
-- Mark-as-sold + transaksi sederhana (penjual pilih buyer dari conversation).
-- Rating 1-5 + komentar (auto-update `rating_average`/`rating_count` via trigger).
-- Report produk/pengguna dengan alasan baku.
-- Loading / empty / error state di setiap layar list.
+- Auth (register/login/logout), 4 akun demo siap pakai
+- Onboarding profil + edit (nama, kota, area, foto, WhatsApp)
+- Izin lokasi + radius pencarian (1/3/5/10/20 km), opsi lokasi demo
+- Upload produk (1-5 foto, kategori, kondisi, area, lokasi, metode transaksi)
+- Feed berbasis lokasi (sort by jarak → terbaru) + filter kategori/kondisi/harga/radius + search
+- Detail produk: carousel, info penjual, tombol chat/favorit/laporkan
+- Favorit (toggle dari kartu/detail, halaman daftar)
+- Chat realtime via BroadcastChannel (anti-duplikat conversation)
+- Mark-as-sold + transaksi (pilih buyer dari conversation)
+- Rating 1-5 + komentar (auto-update average/count profile)
+- Report produk/pengguna dengan alasan baku
+- Loading / empty / error state di setiap layar list
 
-## Privasi & Keamanan
+## Privasi
 
-- Koordinat presisi penjual **tidak ditampilkan** di UI; hanya estimasi jarak.
-- Penjual diingatkan untuk memakai titik area umum saat upload, bukan rumah.
-- Catatan keamanan COD muncul di detail produk dan ruang chat.
-- RLS aktif di semua tabel; kebijakan ditulis eksplisit per operasi.
-- Anon key di `.env` (publik by design, dilindungi RLS); tidak ada service-role key di client.
+- Koordinat presisi penjual tidak ditampilkan; hanya estimasi jarak.
+- Data hanya tersimpan di perangkat masing-masing.
 
-## Batasan MVP
+## Roadmap (di luar MVP)
 
-Belum termasuk: payment gateway, checkout, ongkir/ekspedisi, voucher, live shopping, affiliate, multi-store dashboard, admin panel kompleks, AI recommendation, push notification kompleks, gambar/voice di chat, typing indicator, read-receipt detail.
-
-## Rencana Pengembangan Berikutnya
-
-- RPC server-side untuk distance (PostGIS / `nearby_products` function).
+- Backend nyata (Postgres + WebSocket) untuk shared data antar device.
 - Push notification (Expo Notifications) untuk pesan baru.
-- Read receipt & typing indicator chat.
 - OAuth login (Google).
+- Image di chat, typing indicator, read-receipt.
 - Admin moderation dashboard.
-- Image di chat.
-
-## Testing
-
-Lihat [`docs/manual-test-checklist.md`](docs/manual-test-checklist.md) untuk skenario end-to-end.
 
 ## Scripts
 
 | Script | Kegunaan |
 |---|---|
-| `npm start` | Expo dev server |
 | `npm run web` | Jalankan versi web |
-| `npm run typecheck` | TypeScript check (`tsc --noEmit`) |
+| `npm start` | Expo dev server (mobile) |
+| `npm run typecheck` | TypeScript check |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier |
+
+## Testing
+
+[`docs/manual-test-checklist.md`](docs/manual-test-checklist.md) — skenario end-to-end lengkap.

@@ -11,7 +11,6 @@ import { fontSizes, fontWeights, radii, spacing } from '@/constants/spacing';
 import { listMyConversations } from '@/services/chatService';
 import { useAuth } from '@/hooks/useAuth';
 import { completeSale } from '@/services/transactionService';
-import { isSupabaseConfigured } from '@/services/supabase';
 import type { ConversationListItem } from '@/types/domain';
 
 interface Props {
@@ -31,7 +30,6 @@ export function MarkAsSoldScreen({ productId, onClose }: Props): React.ReactElem
     if (!user) return;
     setError(null); setLoading(true);
     try {
-      if (!isSupabaseConfigured) { setItems([]); return; }
       const all = await listMyConversations(user.id);
       setItems(all.filter((c) => c.product_id === productId));
     } catch (e) {

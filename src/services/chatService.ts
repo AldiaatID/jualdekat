@@ -1,5 +1,13 @@
-import { supabase } from '@/services/supabase';
-import type { ConversationRow, MessageRow, ProductRow, ProfileRow } from '@/types/db';
+import { db } from '@/services/mock/db';
+import { emit, on } from '@/services/mock/realtime';
+import { uuid } from '@/services/mock/uuid';
+import type {
+  ConversationRow,
+  MessageRow,
+  ProductImageRow,
+  ProductRow,
+  ProfileRow,
+} from '@/types/db';
 import type { ConversationListItem } from '@/types/domain';
 
 export async function getOrCreateConversation(input: {
@@ -7,87 +15,71 @@ export async function getOrCreateConversation(input: {
   buyerId: string;
   sellerId: string;
 }): Promise<ConversationRow> {
-  // 1. lookup existing
-  const { data: existing, error: e1 } = await supabase
-    .from('conversations')
-    .select('*')
-    .eq('product_id', input.productId)
-    .eq('buyer_id', input.buyerId)
-    .eq('seller_id', input.sellerId)
-    .maybeSingle();
-  if (e1) throw e1;
-  if (existing) return existing as ConversationRow;
-
-  // 2. create
-  const { data: created, error: e2 } = await supabase
-    .from('conversations')
-    .insert({
-      product_id: input.productId,
-      buyer_id: input.buyerId,
-      seller_id: input.sellerId,
-    } as never)
-    .select('*')
-    .single();
-  if (e2) throw e2;
-  return created as ConversationRow;
-}
-
-interface ConversationJoined extends ConversationRow {
-  product:
-    | (Pick<ProductRow, 'id' | 'name' | 'status'> & {
-        product_images: { image_url: string; sort_order: number }[] | null;
-      })
-    | null;
-  buyer: Pick<ProfileRow, 'id' | 'full_name' | 'avatar_url'> | null;
-  seller: Pick<ProfileRow, 'id' | 'full_name' | 'avatar_url'> | null;
-  last_message: { body: string }[] | null;
-}
-
-export async function listMyConversations(userId: string): Promise<ConversationListItem[]> {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select(
-      `*,
-       product:products(id, name, status, product_images(image_url, sort_order)),
-       buyer:profiles!conversations_buyer_id_fkey(id, full_name, avatar_url),
-       seller:profiles!conversations_seller_id_fkey(id, full_name, avatar_url),
-       last_message:messages(body)`,
-    )
-    .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-    .order('last_message_at', { ascending: false });
-  if (error) throw error;
-
-  const rows = (data ?? []) as unknown as ConversationJoined[];
-  return rows.map((r) => {
-    const isBuyer = r.buyer_id === userId;
-    const peer = isBuyer ? r.seller : r.buyer;
-    const images = (r.product?.product_images ?? [])
-      .slice()
-      .sort((a, b) => a.sort_order - b.sort_order);
-    const preview = (r.last_message ?? []).at(-1)?.body ?? null;
-    return {
-      id: r.id,
-      product_id: r.product_id,
-      product_name: r.product?.name ?? 'Produk',
-      product_image: images[0]?.image_url ?? null,
-      product_status: r.product?.status ?? 'tersedia',
-      peer_id: peer?.id ?? '',
-      peer_name: peer?.full_name ?? 'Pengguna',
-      peer_avatar: peer?.avatar_url ?? null,
-      last_message_at: r.last_message_at,
-      last_message_preview: preview,
-    };
+  if (input.buyerId === input.sellerId) {
+    throw new Error('Tidak bisa chat dengan diri sendiri');
+  }
+  const existing = await db.findOne<ConversationRow>(
+    'conversations',
+    (c) =>
+      c.product_id === input.productId &&
+      c.buyer_id === input.buyerId &&
+      c.seller_id === input.sellerId,
+  );
+  if (existing) return existing;
+  const now = new Date().toISOString();
+  return db.insert<ConversationRow>('conversations', {
+    id: uuid(),
+    product_id: input.productId,
+    buyer_id: input.buyerId,
+    seller_id: input.sellerId,
+    last_message_at: now,
+    created_at: now,
   });
 }
 
+export async function listMyConversations(userId: string): Promise<ConversationListItem[]> {
+  const convs = await db.filter<ConversationRow>(
+    'conversations',
+    (c) => c.buyer_id === userId || c.seller_id === userId,
+  );
+  if (!convs.length) return [];
+  const products = await db.all<ProductRow>('products');
+  const profiles = await db.all<ProfileRow>('profiles');
+  const images = await db.all<ProductImageRow>('product_images');
+  const messages = await db.all<MessageRow>('messages');
+
+  return convs
+    .map((c): ConversationListItem => {
+      const product = products.find((p) => p.id === c.product_id);
+      const isBuyer = c.buyer_id === userId;
+      const peerId = isBuyer ? c.seller_id : c.buyer_id;
+      const peer = profiles.find((p) => p.id === peerId);
+      const productImages = images
+        .filter((i) => i.product_id === c.product_id)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      const convMessages = messages
+        .filter((m) => m.conversation_id === c.id)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const last = convMessages[convMessages.length - 1];
+      return {
+        id: c.id,
+        product_id: c.product_id,
+        product_name: product?.name ?? 'Produk',
+        product_image: productImages[0]?.image_url ?? null,
+        product_status: product?.status ?? 'tersedia',
+        peer_id: peer?.id ?? peerId,
+        peer_name: peer?.full_name ?? 'Pengguna',
+        peer_avatar: peer?.avatar_url ?? null,
+        last_message_at: c.last_message_at,
+        last_message_preview: last?.body ?? null,
+      };
+    })
+    .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+}
+
 export async function fetchMessages(conversationId: string): Promise<MessageRow[]> {
-  const { data, error } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as MessageRow[];
+  const rows = await db.filter<MessageRow>('messages', (m) => m.conversation_id === conversationId);
+  return rows.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 }
 
 export async function sendMessage(input: {
@@ -95,39 +87,26 @@ export async function sendMessage(input: {
   senderId: string;
   body: string;
 }): Promise<MessageRow> {
-  const { data, error } = await supabase
-    .from('messages')
-    .insert({
-      conversation_id: input.conversationId,
-      sender_id: input.senderId,
-      body: input.body,
-    } as never)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data as MessageRow;
+  const now = new Date().toISOString();
+  const message: MessageRow = {
+    id: uuid(),
+    conversation_id: input.conversationId,
+    sender_id: input.senderId,
+    body: input.body,
+    status: 'sent',
+    created_at: now,
+  };
+  await db.insert('messages', message);
+  await db.update<ConversationRow>('conversations', input.conversationId, {
+    last_message_at: now,
+  });
+  emit(`messages:${input.conversationId}`, message);
+  return message;
 }
 
 export function subscribeMessages(
   conversationId: string,
   onInsert: (msg: MessageRow) => void,
-) {
-  const channel = supabase
-    .channel(`messages:${conversationId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      (payload) => {
-        onInsert(payload.new as MessageRow);
-      },
-    )
-    .subscribe();
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+): () => void {
+  return on<MessageRow>(`messages:${conversationId}`, onInsert);
 }
